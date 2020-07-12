@@ -739,7 +739,7 @@ int htNeedsResize(dict *dict) {
 /* If the percentage of used slots in the HT reaches HASHTABLE_MIN_FILL
  * we resize the hash table to save memory */
 void tryResizeHashTables(int dbid) {
-    if (htNeedsResize(server.db[dbid].dict))
+    if (htNeedsResize(server.db[dbid].dict))/*判断是否需要缩容 ： used/size<10%*/
         dictResize(server.db[dbid].dict);
     if (htNeedsResize(server.db[dbid].expires))
         dictResize(server.db[dbid].expires);

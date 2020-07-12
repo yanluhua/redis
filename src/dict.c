@@ -111,9 +111,10 @@ static void _dictReset(dictht *ht)
 dict *dictCreate(dictType *type,
         void *privDataPtr)
 {
-    dict *d = zmalloc(sizeof(*d));
-
-    _dictInit(d,type,privDataPtr);
+    //申请空间
+    dict *d = zmalloc(sizeof(*d));//96字节
+    //调用dictInit函数赋值
+    _dictInit(d,type,privDataPtr);//结构体初始化值
     return d;
 }
 
@@ -132,19 +133,20 @@ int _dictInit(dict *d, dictType *type,
 
 /* Resize the table to the minimal size that contains all the elements,
  * but with the invariant of a USED/BUCKETS ratio near to <= 1 */
+/*缩容函数*/
 int dictResize(dict *d)
 {
     int minimal;
 
     if (!dict_can_resize || dictIsRehashing(d)) return DICT_ERR;
     minimal = d->ht[0].used;
-    if (minimal < DICT_HT_INITIAL_SIZE)
+    if (minimal < DICT_HT_INITIAL_SIZE)/*容量最小值为4*/
         minimal = DICT_HT_INITIAL_SIZE;
-    return dictExpand(d, minimal);
+    return dictExpand(d, minimal);/*调用扩容函数，实质上进行的是缩容*/
 }
 
 /* Expand or create the hash table */
-int dictExpand(dict *d, unsigned long size)
+int dictExpand(dict *d, unsigned long size)/*传入size=d->ht[0].used*2*/
 {
     /* the size is invalid if it is smaller than the number of
      * elements already inside the hash table */
@@ -152,7 +154,7 @@ int dictExpand(dict *d, unsigned long size)
         return DICT_ERR;
 
     dictht n; /* the new hash table */
-    unsigned long realsize = _dictNextPower(size);
+    unsigned long realsize = _dictNextPower(size);/*重新计算扩容后的值，必须为2的N次方幂*/
 
     /* Rehashing to the same table size is not useful. */
     if (realsize == d->ht[0].size) return DICT_ERR;
@@ -171,8 +173,8 @@ int dictExpand(dict *d, unsigned long size)
     }
 
     /* Prepare a second hash table for incremental rehashing */
-    d->ht[1] = n;
-    d->rehashidx = 0;
+    d->ht[1] = n;/*扩容后的新内存放入ht[1]中*/
+    d->rehashidx = 0;/*非默认的-1，表示需要进行rehash*/
     return DICT_OK;
 }
 
@@ -262,12 +264,14 @@ static void _dictRehashStep(dict *d) {
 }
 
 /* Add an element to the target hash table */
+/*调用前会查找key是否存在，不存在则调用dictAdd函数*/
 int dictAdd(dict *d, void *key, void *val)
 {
+    /*添加键，字典中键已存在则返回null。否则添加键至新节点中，返回新节点*/
     dictEntry *entry = dictAddRaw(d,key,NULL);
-
+    /*键存在则返回错误*/
     if (!entry) return DICT_ERR;
-    dictSetVal(d, entry, val);
+    dictSetVal(d, entry, val);/*设置值*/
     return DICT_OK;
 }
 
@@ -294,19 +298,21 @@ dictEntry *dictAddRaw(dict *d, void *key, dictEntry **existing)
     long index;
     dictEntry *entry;
     dictht *ht;
-
+    /*字典是否在进行rehash操作中，是则进行一次rehash*/
     if (dictIsRehashing(d)) _dictRehashStep(d);
 
     /* Get the index of the new element, or -1 if
      * the element already exists. */
-    if ((index = _dictKeyIndex(d, key, dictHashKey(d,key), existing)) == -1)
+    if ((index = _dictKeyIndex(d, key, /*调用该字典的hash函数得到键的Hash值*/dictHashKey(d,key), existing)) == -1)
+        /*查找键，找到则直接返回-1，并把老街店存入existing字段，否则把新节点的索引值返回，吐过遇到hash表容量不足，这进行扩容*/
         return NULL;
 
     /* Allocate the memory and store the new entry.
      * Insert the element in top, with the assumption that in a database
      * system it is more likely that recently added entries are accessed
      * more frequently. */
-    ht = dictIsRehashing(d) ? &d->ht[1] : &d->ht[0];
+    ht = dictIsRehashing(d) ? &d->ht[1] : &d->ht[0];/*是否进行rehash操作中，是则插入值散列表【1】中，否则插入散列表ht【0】*/
+    /*申请新节点内存，插入散列表中，给新节点存入键信息*/
     entry = zmalloc(sizeof(*entry));
     entry->next = ht->table[index];
     ht->table[index] = entry;
@@ -480,16 +486,16 @@ dictEntry *dictFind(dict *d, const void *key)
 
     if (d->ht[0].used + d->ht[1].used == 0) return NULL; /* dict is empty */
     if (dictIsRehashing(d)) _dictRehashStep(d);
-    h = dictHashKey(d, key);
-    for (table = 0; table <= 1; table++) {
-        idx = h & d->ht[table].sizemask;
+    h = dictHashKey(d, key);/*得到键的Hash值*/
+    for (table = 0; table <= 1; table++) {/*遍历查找Hash表，ht[0]与[1]*/
+        idx = h & d->ht[table].sizemask;/*根据Hash值获取对应的索引值*/
         he = d->ht[table].table[idx];
-        while(he) {
+        while(he) {/*如果存在值则遍历该值中的单链表*/
             if (key==he->key || dictCompareKeys(d, key, he->key))
-                return he;
+                return he;/*找到与键相等的值，返回该节点*/
             he = he->next;
         }
-        if (!dictIsRehashing(d)) return NULL;
+        if (!dictIsRehashing(d)) return NULL;//如果未进行rehash操作，则只读取ht[0]
     }
     return NULL;
 }
@@ -507,6 +513,8 @@ void *dictFetchValue(dict *d, const void *key) {
  * the fingerprint again when the iterator is released.
  * If the two fingerprints are different it means that the user of the iterator
  * performed forbidden operations against the dictionary while iterating. */
+
+/*指纹算法*/
 long long dictFingerprint(dict *d) {
     long long integers[6], hash = 0;
     int j;
@@ -835,6 +843,13 @@ static unsigned long rev(unsigned long v) {
  * 3) The reverse cursor is somewhat hard to understand at first, but this
  *    comment is supposed to help.
  */
+/*
+ * d 当前迭代的字典
+ * v 标识迭代开的的油表（即Hash表中数组索引）
+ * fn 是函数指针，每遍历一个节点者调用该函数处理
+ * bucketfn 整理碎片时调用
+ * privatedata 是回调函数fn所需要的参数
+ * */
 unsigned long dictScan(dict *d,
                        unsigned long v,
                        dictScanFunction *fn,
@@ -853,10 +868,10 @@ unsigned long dictScan(dict *d,
 
         /* Emit entries at cursor */
         if (bucketfn) bucketfn(privdata, &t0->table[v & m0]);
-        de = t0->table[v & m0];
-        while (de) {
+        de = t0->table[v & m0];/*避免缩容后游标查出Hash表最大值*/
+        while (de) {/*循环遍历当前节点的单链表*/
             next = de->next;
-            fn(privdata, de);
+            fn(privdata, de);/*依次将节点中键值对存入privatedata字段中的单链表*/
             de = next;
         }
 
@@ -865,7 +880,7 @@ unsigned long dictScan(dict *d,
         v |= ~m0;
 
         /* Increment the reverse cursor */
-        v = rev(v);
+        v = rev(v);/*二进制逆转*/
         v++;
         v = rev(v);
 
@@ -970,6 +985,7 @@ static long _dictKeyIndex(dict *d, const void *key, uint64_t hash, dictEntry **e
     if (_dictExpandIfNeeded(d) == DICT_ERR)
         return -1;
     for (table = 0; table <= 1; table++) {
+        /*用键的Hash值与字典掩码取与，得到索引值*/
         idx = hash & d->ht[table].sizemask;
         /* Search if this slot does not already contain the given key */
         he = d->ht[table].table[idx];

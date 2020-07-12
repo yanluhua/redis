@@ -187,22 +187,22 @@ void dbAdd(redisDb *db, robj *key, robj *val) {
  *
  * The program is aborted if the key was not already present. */
 void dbOverwrite(redisDb *db, robj *key, robj *val) {
-    dictEntry *de = dictFind(db->dict,key->ptr);
+    dictEntry *de = dictFind(db->dict,key->ptr);/*查找键存在与否，返回再存的节点*/
 
-    serverAssertWithInfo(NULL,key,de != NULL);
+    serverAssertWithInfo(NULL,key,de != NULL);/*不存在则中断执行*/
     dictEntry auxentry = *de;
-    robj *old = dictGetVal(de);
+    robj *old = dictGetVal(de);/*获取老节点的val字段值*/
     if (server.maxmemory_policy & MAXMEMORY_FLAG_LFU) {
         val->lru = old->lru;
     }
-    dictSetVal(db->dict, de, val);
+    dictSetVal(db->dict, de, val);/*给新节点设置新的值*/
 
     if (server.lazyfree_lazy_server_del) {
         freeObjAsync(old);
         dictSetVal(db->dict, &auxentry, NULL);
     }
 
-    dictFreeVal(db->dict, &auxentry);
+    dictFreeVal(db->dict, &auxentry);/*释放节点中旧val内存*/
 }
 
 /* High level Set operation. This function can be used in order to set
@@ -698,6 +698,7 @@ void scanGenericCommand(client *c, robj *o, unsigned long cursor) {
          * COUNT, so if the hash table is in a pathological state (very
          * sparsely populated) we avoid to block too much time at the cost
          * of returning no or very few elements. */
+        /*count 为hscan名如参入的count值，代表获取数据的个数。Hash表处于病态是（例如大部分的节点为空是）最大迭代次数为10*count*/
         long maxiterations = count*10;
 
         /* We pass two pointers to the callback: the list to which it will
@@ -706,6 +707,7 @@ void scanGenericCommand(client *c, robj *o, unsigned long cursor) {
         privdata[0] = keys;
         privdata[1] = o;
         do {
+            /*cursor 初始值为hscan命令传入值，代表迭代Hash数组的油表起点值*/
             cursor = dictScan(ht, cursor, scanCallback, NULL, privdata);
         } while (cursor &&
               maxiterations-- &&

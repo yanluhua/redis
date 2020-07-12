@@ -119,8 +119,10 @@ void zslFree(zskiplist *zsl) {
  * The return value of this function is between 1 and ZSKIPLIST_MAXLEVEL
  * (both inclusive), with a powerlaw-alike distribution where higher
  * levels are less likely to be returned. */
+//随机生成1~64的值，作为新建节点的高度，值越大出现的概率越低，节点层高确定之后便不会再修改
 int zslRandomLevel(void) {
     int level = 1;
+
     while ((random()&0xFFFF) < (ZSKIPLIST_P * 0xFFFF))
         level += 1;
     return (level<ZSKIPLIST_MAXLEVEL) ? level : ZSKIPLIST_MAXLEVEL;
@@ -1602,9 +1604,9 @@ void zaddGenericCommand(client *c, int flags) {
         if (server.zset_max_ziplist_entries == 0 ||
             server.zset_max_ziplist_value < sdslen(c->argv[scoreidx+1]->ptr))
         {
-            zobj = createZsetObject();
+            zobj = createZsetObject();//创建跳跃表结构
         } else {
-            zobj = createZsetZiplistObject();
+            zobj = createZsetZiplistObject();//创建压缩表结构
         }
         dbAdd(c->db,key,zobj);
     } else {

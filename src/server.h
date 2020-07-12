@@ -618,8 +618,9 @@ typedef struct redisObject {
     unsigned lru:LRU_BITS; /* LRU time (relative to global lru_clock) or
                             * LFU data (least significant 8 bits frequency
                             * and most significant 16 bits access time). */
-    int refcount;
-    void *ptr;
+    /*缓存淘汰使用*/
+    int refcount;/*引用计数*/
+    void *ptr;/*指向世界存储的某一种数据结构*/
 } robj;
 
 /* Macro used to initialize a Redis object allocated on the stack.
@@ -809,18 +810,23 @@ struct sharedObjectsStruct {
 
 /* ZSETs use a specialized version of Skiplists */
 typedef struct zskiplistNode {
-    sds ele;
-    double score;
-    struct zskiplistNode *backward;
+    sds ele;//用于存储字符串类型的数据
+    double score;//用于存储排序的分值
+    struct zskiplistNode *backward;//后退指针，只能指向当前节点最底层的前一个节点，头结点和第一个节点指向你NULL ，从后向前遍历跳跃表时使用
+    //
     struct zskiplistLevel {
-        struct zskiplistNode *forward;
-        unsigned long span;
-    } level[];
+        struct zskiplistNode *forward;//指向本层的下一个节点，尾节点的fowward指向NULL
+        unsigned long span;//forward指向的节点与本节点之间的元素个数，span值越大，跳过的节点个数越多
+    } level[];//柔性数组，每个节点的数组长度不一样，在生成跳跃表节点是，随机生成一个1~64的值，值越大出现的概率月底
 } zskiplistNode;
 
 typedef struct zskiplist {
+    //header 指向跳跃表头节点。头节点是跳跃表的一个特殊节点，他的level数组元素个数为64.头节点在有序结合中不存储任何member和score，ele值为NULL。score值为0；也不计入跳跃表的总长度。头节点在初始化时，64个元素的forwad都指向NULL，span值都为0
+    //tail 指向跳跃表尾节点
     struct zskiplistNode *header, *tail;
+    //跳跃表长度，表示除头节点之外的节点总数
     unsigned long length;
+    //跳跃表的高度
     int level;
 } zskiplist;
 

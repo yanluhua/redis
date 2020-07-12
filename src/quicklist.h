@@ -44,12 +44,12 @@
 typedef struct quicklistNode {
     struct quicklistNode *prev;
     struct quicklistNode *next;
-    unsigned char *zl;
-    unsigned int sz;             /* ziplist size in bytes */
+    unsigned char *zl;/*该节点对应的ziplist结构*/
+    unsigned int sz;           /*整个ziplist结构的大小*/  /* ziplist size in bytes */
     unsigned int count : 16;     /* count of items in ziplist */
-    unsigned int encoding : 2;   /* RAW==1 or LZF==2 */
-    unsigned int container : 2;  /* NONE==1 or ZIPLIST==2 */
-    unsigned int recompress : 1; /* was this node previous compressed? */
+    unsigned int encoding : 2;   /* RAW==1原生 or LZF==2 */
+    unsigned int container : 2;  /* NONE==1 or ZIPLIST==2 *//*zl指向的容器类型*/
+    unsigned int recompress : 1; /* was this node previous compressed? *//*是否有压缩节点*/
     unsigned int attempted_compress : 1; /* node can't compress; too small */
     unsigned int extra : 10; /* more bits to steal for future usage */
 } quicklistNode;
@@ -75,7 +75,7 @@ typedef struct quicklist {
     quicklistNode *tail;
     unsigned long count;        /* total count of all entries in all ziplists */
     unsigned long len;          /* number of quicklistNodes */
-    int fill : 16;              /* fill factor for individual nodes */
+    int fill : 16;              /* fill factor for individual nodes *//*用来指明每个quicklistNode中ziplist长度*/
     unsigned int compress : 16; /* depth of end nodes not to compress;0=off */
 } quicklist;
 
@@ -84,17 +84,17 @@ typedef struct quicklistIter {
     quicklistNode *current;
     unsigned char *zi;
     long offset; /* offset in current ziplist */
-    int direction;
+    int direction;/*迭代器的方向*/
 } quicklistIter;
 
 typedef struct quicklistEntry {
     const quicklist *quicklist;
     quicklistNode *node;
-    unsigned char *zi;
-    unsigned char *value;
-    long long longval;
-    unsigned int sz;
-    int offset;
+    unsigned char *zi;/*当前元素所在的ziplist*/
+    unsigned char *value;/*字符串内容*/
+    long long longval;/*整型值*/
+    unsigned int sz;/*节点大小，与value配合使用*/
+    int offset;/*ziplist的偏移量*/
 } quicklistEntry;
 
 #define QUICKLIST_HEAD 0

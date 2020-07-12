@@ -108,7 +108,7 @@ static void aeApiDelEvent(aeEventLoop *eventLoop, int fd, int delmask) {
 static int aeApiPoll(aeEventLoop *eventLoop, struct timeval *tvp) {
     aeApiState *state = eventLoop->apidata;
     int retval, numevents = 0;
-
+    /*阻塞等待事件的发生*/
     retval = epoll_wait(state->epfd,state->events,eventLoop->setsize,
             tvp ? (tvp->tv_sec*1000 + tvp->tv_usec/1000) : -1);
     if (retval > 0) {
@@ -118,11 +118,13 @@ static int aeApiPoll(aeEventLoop *eventLoop, struct timeval *tvp) {
         for (j = 0; j < numevents; j++) {
             int mask = 0;
             struct epoll_event *e = state->events+j;
-
+            /*转换时间类型为redis定义的*/
             if (e->events & EPOLLIN) mask |= AE_READABLE;
             if (e->events & EPOLLOUT) mask |= AE_WRITABLE;
             if (e->events & EPOLLERR) mask |= AE_WRITABLE;
             if (e->events & EPOLLHUP) mask |= AE_WRITABLE;
+            /*记录已发生事件到fired数组
+             * */
             eventLoop->fired[j].fd = e->data.fd;
             eventLoop->fired[j].mask = mask;
         }

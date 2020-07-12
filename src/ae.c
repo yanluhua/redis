@@ -355,6 +355,9 @@ static int processTimeEvents(aeEventLoop *eventLoop) {
  * the events that's possible to process without to wait are processed.
  *
  * The function returns the number of events processed. */
+/*AE_ALL_EVENTS 表示函数需要处理文件事件与时间事件
+ * AE_CALL_AFTER_SLEEP 表示阻塞等待文件事件之后需要执行aftersleep函数
+ * */
 int aeProcessEvents(aeEventLoop *eventLoop, int flags)
 {
     int processed = 0, numevents;
@@ -498,6 +501,7 @@ void aeMain(aeEventLoop *eventLoop) {
     while (!eventLoop->stop) {
         if (eventLoop->beforesleep != NULL)
             eventLoop->beforesleep(eventLoop);
+        /*事件循环*/
         aeProcessEvents(eventLoop, AE_ALL_EVENTS|AE_CALL_AFTER_SLEEP);
     }
 }

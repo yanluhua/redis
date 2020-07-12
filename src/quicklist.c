@@ -92,14 +92,14 @@ static const size_t optimization_level[] = {4096, 8192, 16384, 32768, 65536};
 /* Create a new quicklist.
  * Free with quicklistRelease(). */
 quicklist *quicklistCreate(void) {
-    struct quicklist *quicklist;
+    struct quicklist *quicklist;/*声明quicklist变量*/
 
-    quicklist = zmalloc(sizeof(*quicklist));
-    quicklist->head = quicklist->tail = NULL;
+    quicklist = zmalloc(sizeof(*quicklist));/*申请空间*/
+    quicklist->head = quicklist->tail = NULL;/*初始化quicklist结构体变量*/
     quicklist->len = 0;
     quicklist->count = 0;
     quicklist->compress = 0;
-    quicklist->fill = -2;
+    quicklist->fill = -2;/*ziplist默认带下限制是8KB*/
     return quicklist;
 }
 
@@ -481,14 +481,17 @@ int quicklistPushHead(quicklist *quicklist, void *value, size_t sz) {
     quicklistNode *orig_head = quicklist->head;
     if (likely(
             _quicklistNodeAllowInsert(quicklist->head, quicklist->fill, sz))) {
+        /*头部节点仍然可以插入*/
         quicklist->head->zl =
             ziplistPush(quicklist->head->zl, value, sz, ZIPLIST_HEAD);
         quicklistNodeUpdateSz(quicklist->head);
     } else {
+        /*头部节点不可以继续参入，新建quicklistNode，ziplist*/
         quicklistNode *node = quicklistCreateNode();
         node->zl = ziplistPush(ziplistNew(), value, sz, ZIPLIST_HEAD);
 
         quicklistNodeUpdateSz(node);
+        /*将新建的quicklistNode 插入到quicklist结构体重*/
         _quicklistInsertNodeBefore(quicklist, quicklist->head, node);
     }
     quicklist->count++;
