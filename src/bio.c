@@ -135,11 +135,11 @@ void bioCreateBackgroundJob(int type, void *arg1, void *arg2, void *arg3) {
     job->arg1 = arg1;
     job->arg2 = arg2;
     job->arg3 = arg3;
-    pthread_mutex_lock(&bio_mutex[type]);
-    listAddNodeTail(bio_jobs[type],job);
-    bio_pending[type]++;
-    pthread_cond_signal(&bio_newjob_cond[type]);
-    pthread_mutex_unlock(&bio_mutex[type]);
+    pthread_mutex_lock(&bio_mutex[type]);/*加锁*/
+    listAddNodeTail(bio_jobs[type],job);/*追加任务*/
+    bio_pending[type]++;/*计数*/
+    pthread_cond_signal(&bio_newjob_cond[type]);/*唤醒异步线程*/
+    pthread_mutex_unlock(&bio_mutex[type]);/*释放锁*/
 }
 
 void *bioProcessBackgroundJobs(void *arg) {
@@ -173,15 +173,16 @@ void *bioProcessBackgroundJobs(void *arg) {
 
         /* The loop always starts with the lock hold. */
         if (listLength(bio_jobs[type]) == 0) {
+            /*队列空那就hold住*/
             pthread_cond_wait(&bio_newjob_cond[type],&bio_mutex[type]);
             continue;
         }
         /* Pop the job from the queue. */
-        ln = listFirst(bio_jobs[type]);
+        ln = listFirst(bio_jobs[type]);/*获取对头元素*/
         job = ln->value;
         /* It is now possible to unlock the background system as we know have
          * a stand alone job structure to process.*/
-        pthread_mutex_unlock(&bio_mutex[type]);
+        pthread_mutex_unlock(&bio_mutex[type]);/*释放锁*/
 
         /* Process the job accordingly to its type. */
         if (type == BIO_CLOSE_FILE) {
@@ -202,11 +203,12 @@ void *bioProcessBackgroundJobs(void *arg) {
         } else {
             serverPanic("Wrong job type in bioProcessBackgroundJobs().");
         }
-        zfree(job);
+        zfree(job);/*释放任务对象*/
 
         /* Lock again before reiterating the loop, if there are no longer
          * jobs to process we'll block again in pthread_cond_wait(). */
-        pthread_mutex_lock(&bio_mutex[type]);
+        pthread_mutex_lock(&bio_mutex[type]);/*再次加锁继续处理下一个对象*/
+        /*任务已经处理完了，可以放心从链表中删除节点了*/
         listDelNode(bio_jobs[type],ln);
         bio_pending[type]--;
 
