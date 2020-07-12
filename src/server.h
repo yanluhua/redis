@@ -1539,7 +1539,7 @@ void flagTransaction(client *c);
 void execCommandPropagateMulti(client *c);
 
 /* Redis object implementation */
-void decrRefCount(robj *o);
+//void (robj *o);
 void decrRefCountVoid(void *o);
 void incrRefCount(robj *o);
 robj *makeObjectShared(robj *o);
